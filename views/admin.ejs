@@ -76,7 +76,9 @@
             
             <p style="color: #888; font-size: 12px; margin-top: 10px;">
                 Get request token from: <a href="https://kite.zerodha.com/connect/login?api_key=u1hw0il15nowm3db" target="_blank" style="color: #0f0;">Kite Connect Login</a>
+                | <a href="#" onclick="checkDebug(); return false;" style="color: #0f0;">Debug Info</a>
             </p>
+            <div id="debugInfo" style="display: none; margin-top: 10px; padding: 10px; background: #200; border: 1px solid #f00;"></div>
         </div>
         
         <div class="section">
@@ -241,6 +243,26 @@
                 }
             } catch (error) {
                 alert('Error updating token');
+            }
+        }
+        
+        async function checkDebug() {
+            try {
+                const response = await fetch('/admin/debug-env');
+                const data = await response.json();
+                const debugDiv = document.getElementById('debugInfo');
+                debugDiv.innerHTML = `
+                    <strong>Debug Information:</strong><br>
+                    API Key Set: ${data.hasApiKey ? 'YES' : 'NO'}<br>
+                    API Key Length: ${data.apiKeyLength}<br>
+                    API Key Preview: ${data.apiKeyValue}<br>
+                    API Secret Set: ${data.hasApiSecret ? 'YES' : 'NO'}<br>
+                    Request Token Set: ${data.hasRequestToken ? 'YES' : 'NO'}<br>
+                    Access Token Set: ${data.hasAccessToken ? 'YES' : 'NO'}
+                `;
+                debugDiv.style.display = debugDiv.style.display === 'none' ? 'block' : 'none';
+            } catch (error) {
+                alert('Error fetching debug info');
             }
         }
         

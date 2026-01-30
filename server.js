@@ -76,14 +76,21 @@ async function generateAccessToken(requestToken = null) {
       return { success: false, error: tokenError };
     }
 
+    console.log('Generating token with API Key:', apiKey);
+    
     const checksum = crypto.createHash('sha256')
       .update(apiKey + tokenToUse + apiSecret)
       .digest('hex');
 
-    const response = await axios.post('https://api.kite.trade/session/token', {
-      api_key: apiKey,
-      request_token: tokenToUse,
-      checksum: checksum
+    const params = new URLSearchParams();
+    params.append('api_key', apiKey);
+    params.append('request_token', tokenToUse);
+    params.append('checksum', checksum);
+
+    const response = await axios.post('https://api.kite.trade/session/token', params, {
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded'
+      }
     });
 
     if (response.data && response.data.data && response.data.data.access_token) {
@@ -443,6 +450,17 @@ app.post('/admin/start-fetching', requireAdmin, (req, res) => {
   } else {
     res.json({ success: false, message: 'Please configure access token first' });
   }
+});
+
+app.get('/admin/debug-env', requireAdmin, (req, res) => {
+  res.json({
+    hasApiKey: !!process.env.KITE_API_KEY,
+    apiKeyLength: process.env.KITE_API_KEY ? process.env.KITE_API_KEY.length : 0,
+    apiKeyValue: process.env.KITE_API_KEY ? process.env.KITE_API_KEY.substring(0, 5) + '...' : 'NOT SET',
+    hasApiSecret: !!process.env.KITE_API_SECRET,
+    hasRequestToken: !!currentRequestToken,
+    hasAccessToken: !!accessToken && accessToken !== 'your_access_token_here'
+  });
 });
 
 app.get('/admin/logout', (req, res) => {
