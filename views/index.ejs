@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Nifty Close Price Prediction</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: monospace; background: #000; color: #0f0; padding: 20px; }
+        .container { max-width: 800px; margin: 0 auto; }
+        h1 { font-size: 24px; margin-bottom: 20px; border-bottom: 2px solid #0f0; padding-bottom: 10px; }
+        .price-info { background: #111; padding: 15px; margin-bottom: 20px; border: 1px solid #0f0; }
+        .price-info p { margin: 5px 0; }
+        .leaderboard { margin-bottom: 20px; }
+        .leaderboard h2 { font-size: 18px; margin-bottom: 10px; }
+        .prediction { background: #111; padding: 10px; margin-bottom: 5px; border-left: 3px solid #0f0; }
+        .prediction.first { border-left-color: gold; }
+        .prediction.second { border-left-color: silver; }
+        .prediction.third { border-left-color: #cd7f32; }
+        .btn { display: inline-block; padding: 10px 20px; background: #0f0; color: #000; text-decoration: none; margin-top: 10px; }
+        .btn:hover { background: #0a0; }
+        .message { background: #220; padding: 10px; border: 1px solid #aa0; color: #ff0; margin-bottom: 20px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>NIFTY 50 CLOSE PREDICTION</h1>
+        
+        <% if (message) { %>
+        <div class="message"><%= message %></div>
+        <% } %>
+        
+        <div class="price-info">
+            <p>CURRENT PRICE: <%= currentPrice ? currentPrice.toFixed(2) : 'FETCHING...' %></p>
+            <p>LAST CLOSE: <%= lastClosePrice ? lastClosePrice.toFixed(2) : 'FETCHING...' %></p>
+        </div>
+        
+        <div class="leaderboard">
+            <h2>TOP PREDICTIONS</h2>
+            <% if (topPredictions.length === 0) { %>
+                <p>No predictions yet</p>
+            <% } else { %>
+                <% topPredictions.forEach((prediction, index) => { %>
+                <div class="prediction <%= index === 0 ? 'first' : index === 1 ? 'second' : index === 2 ? 'third' : '' %>">
+                    #<%= index + 1 %> | <%= prediction.name %> | <%= prediction.predicted_value.toFixed(2) %>
+                    <% if (currentPrice) { %>
+                    | DIFF: <%= Math.abs(prediction.predicted_value - currentPrice).toFixed(2) %>
+                    <% } %>
+                </div>
+                <% }) %>
+            <% } %>
+        </div>
+        
+        <a href="/predict" class="btn">SUBMIT PREDICTION</a>
+    </div>
+</body>
+</html>
