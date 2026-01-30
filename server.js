@@ -61,50 +61,70 @@ let currentNiftyPrice = null;
 let lastClosePrice = null;
 let accessToken = process.env.KITE_ACCESS_TOKEN;
 let isTokenValid = false;
+let currentRequestToken = process.env.KITE_REQUEST_TOKEN;
+let tokenError = null;
 
-async function generateAccessToken() {
+async function generateAccessToken(requestToken = null) {
   try {
     const apiKey = process.env.KITE_API_KEY;
     const apiSecret = process.env.KITE_API_SECRET;
-    const requestToken = process.env.KITE_REQUEST_TOKEN;
+    const tokenToUse = requestToken || currentRequestToken || process.env.KITE_REQUEST_TOKEN;
     
-    if (!apiKey || !apiSecret || !requestToken) {
+    if (!apiKey || !apiSecret || !tokenToUse) {
+      tokenError = 'Missing API credentials or request token';
       console.log('Kite Connect credentials incomplete for token generation');
-      return false;
+      return { success: false, error: tokenError };
     }
 
     const checksum = crypto.createHash('sha256')
-      .update(apiKey + requestToken + apiSecret)
+      .update(apiKey + tokenToUse + apiSecret)
       .digest('hex');
 
     const response = await axios.post('https://api.kite.trade/session/token', {
       api_key: apiKey,
-      request_token: requestToken,
+      request_token: tokenToUse,
       checksum: checksum
     });
 
     if (response.data && response.data.data && response.data.data.access_token) {
       accessToken = response.data.data.access_token;
       isTokenValid = true;
+      tokenError = null;
+      if (requestToken) {
+        currentRequestToken = requestToken;
+      }
       console.log('Access token generated successfully');
       
       fs.readFile('.env', 'utf8', (err, data) => {
         if (err) return;
-        const updatedEnv = data.replace(
+        let updatedEnv = data.replace(
           /KITE_ACCESS_TOKEN=.*/,
           `KITE_ACCESS_TOKEN=${accessToken}`
         );
+        if (requestToken) {
+          updatedEnv = updatedEnv.replace(
+            /KITE_REQUEST_TOKEN=.*/,
+            `KITE_REQUEST_TOKEN=${requestToken}`
+          );
+        }
         fs.writeFile('.env', updatedEnv, (err) => {
           if (err) console.error('Error updating .env:', err);
         });
       });
       
-      return true;
+      return { success: true, accessToken };
     }
   } catch (error) {
-    console.error('Error generating access token:', error.message);
+    console.error('Error generating access token:', error.response?.data || error.message);
+    if (error.response?.data?.message) {
+      tokenError = error.response.data.message;
+    } else if (error.response?.status === 403) {
+      tokenError = 'Invalid or expired request token. Please get a new one from Kite Connect login.';
+    } else {
+      tokenError = error.message;
+    }
     isTokenValid = false;
-    return false;
+    return { success: false, error: tokenError };
   }
 }
 
@@ -292,7 +312,9 @@ app.get('/admin', requireAdmin, (req, res) => {
             predictions: predictions || [],
             currentPrice: currentNiftyPrice,
             isTokenValid: isTokenValid,
-            lastClosePrice: lastClosePrice
+            lastClosePrice: lastClosePrice,
+            tokenError: tokenError,
+            currentRequestToken: currentRequestToken
           });
         });
       } else {
@@ -302,7 +324,9 @@ app.get('/admin', requireAdmin, (req, res) => {
           predictions: [],
           currentPrice: currentNiftyPrice,
           isTokenValid: isTokenValid,
-          lastClosePrice: lastClosePrice
+          lastClosePrice: lastClosePrice,
+          tokenError: tokenError,
+          currentRequestToken: currentRequestToken
         });
       }
     });
@@ -374,11 +398,42 @@ app.post('/admin/bulk-upload', requireAdmin, upload.single('csvFile'), (req, res
 });
 
 app.post('/admin/refresh-token', requireAdmin, async (req, res) => {
-  const success = await generateAccessToken();
-  if (success) {
+  const { requestToken } = req.body;
+  const result = await generateAccessToken(requestToken);
+  if (result.success) {
     fetchNiftyPrice();
   }
-  res.json({ success, isTokenValid });
+  res.json({ 
+    success: result.success, 
+    isTokenValid,
+    error: result.error,
+    accessToken: result.accessToken 
+  });
+});
+
+app.post('/admin/update-access-token', requireAdmin, async (req, res) => {
+  const { accessTokenInput } = req.body;
+  if (accessTokenInput) {
+    accessToken = accessTokenInput;
+    isTokenValid = true;
+    tokenError = null;
+    
+    fs.readFile('.env', 'utf8', (err, data) => {
+      if (err) return;
+      const updatedEnv = data.replace(
+        /KITE_ACCESS_TOKEN=.*/,
+        `KITE_ACCESS_TOKEN=${accessToken}`
+      );
+      fs.writeFile('.env', updatedEnv, (err) => {
+        if (err) console.error('Error updating .env:', err);
+      });
+    });
+    
+    fetchNiftyPrice();
+    res.json({ success: true, message: 'Access token updated successfully' });
+  } else {
+    res.json({ success: false, message: 'Access token is required' });
+  }
 });
 
 app.post('/admin/start-fetching', requireAdmin, (req, res) => {

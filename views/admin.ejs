@@ -30,11 +30,19 @@
         .token-invalid { background: #200; border: 1px solid #f00; }
         .logout-link { color: #f00; text-decoration: none; }
         .logout-link:hover { color: #a00; }
+        .error-msg { background: #200; padding: 10px; border: 1px solid #f00; color: #f00; margin-bottom: 15px; }
+        .token-input { padding: 8px; background: #000; color: #0f0; border: 1px solid #0f0; font-family: monospace; width: 400px; margin-right: 10px; }
+        .token-section { background: #111; padding: 15px; margin-bottom: 20px; border: 1px solid #0f0; }
+        .token-form { display: flex; gap: 10px; margin-bottom: 10px; align-items: center; }
     </style>
 </head>
 <body>
     <div class="container">
         <h1>ADMIN PANEL</h1>
+        
+        <% if (typeof tokenError !== 'undefined' && tokenError) { %>
+        <div class="error-msg">TOKEN ERROR: <%= tokenError %></div>
+        <% } %>
         
         <div class="status-bar">
             <div style="display: flex; align-items: center;">
@@ -49,6 +57,26 @@
                 <button onclick="startFetching()" class="btn">START FETCHING</button>
                 <a href="/admin/logout" class="logout-link">LOGOUT</a>
             </div>
+        </div>
+        
+        <div class="token-section">
+            <h2>TOKEN MANAGEMENT</h2>
+            
+            <div class="token-form">
+                <label>Request Token:</label>
+                <input type="text" id="requestTokenInput" class="token-input" placeholder="Enter new request token from Kite login">
+                <button onclick="refreshTokenWithNew()" class="btn">GENERATE ACCESS TOKEN</button>
+            </div>
+            
+            <div class="token-form">
+                <label>Access Token:</label>
+                <input type="text" id="accessTokenInput" class="token-input" placeholder="Or directly enter access token">
+                <button onclick="updateAccessToken()" class="btn">UPDATE ACCESS TOKEN</button>
+            </div>
+            
+            <p style="color: #888; font-size: 12px; margin-top: 10px;">
+                Get request token from: <a href="https://kite.zerodha.com/connect/login?api_key=u1hw0il15nowm3db" target="_blank" style="color: #0f0;">Kite Connect Login</a>
+            </p>
         </div>
         
         <div class="section">
@@ -150,16 +178,69 @@
     <script>
         async function refreshToken() {
             try {
-                const response = await fetch('/admin/refresh-token', { method: 'POST' });
+                const response = await fetch('/admin/refresh-token', { 
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' }
+                });
                 const data = await response.json();
                 if (data.success) {
                     alert('Token refreshed successfully');
                     location.reload();
                 } else {
-                    alert('Failed to refresh token. Check request token in .env');
+                    alert('Failed: ' + (data.error || 'Check request token'));
                 }
             } catch (error) {
                 alert('Error refreshing token');
+            }
+        }
+        
+        async function refreshTokenWithNew() {
+            const requestToken = document.getElementById('requestTokenInput').value.trim();
+            if (!requestToken) {
+                alert('Please enter a request token');
+                return;
+            }
+            
+            try {
+                const response = await fetch('/admin/refresh-token', { 
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ requestToken })
+                });
+                const data = await response.json();
+                if (data.success) {
+                    alert('Access token generated successfully!');
+                    location.reload();
+                } else {
+                    alert('Failed: ' + (data.error || 'Invalid request token'));
+                }
+            } catch (error) {
+                alert('Error generating token');
+            }
+        }
+        
+        async function updateAccessToken() {
+            const accessToken = document.getElementById('accessTokenInput').value.trim();
+            if (!accessToken) {
+                alert('Please enter an access token');
+                return;
+            }
+            
+            try {
+                const response = await fetch('/admin/update-access-token', { 
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ accessTokenInput: accessToken })
+                });
+                const data = await response.json();
+                if (data.success) {
+                    alert('Access token updated successfully!');
+                    location.reload();
+                } else {
+                    alert('Failed: ' + data.message);
+                }
+            } catch (error) {
+                alert('Error updating token');
             }
         }
         
