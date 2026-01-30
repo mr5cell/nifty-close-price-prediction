@@ -1,0 +1,21 @@
+services:
+  - type: web
+    name: nifty-prediction
+    env: node
+    buildCommand: npm install
+    startCommand: npm start
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: SESSION_SECRET
+        generateValue: true
+      - key: ADMIN_PIN
+        value: 15081947
+      - key: KITE_API_KEY
+        sync: false
+      - key: KITE_API_SECRET
+        sync: false
+      - key: KITE_REQUEST_TOKEN
+        sync: false
+      - key: KITE_ACCESS_TOKEN
+        sync: false
